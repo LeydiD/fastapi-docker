@@ -1,13 +1,13 @@
-from fastapi import FastAPI, Request
-import json
+from fastapi import FastAPI, Request, HTTPException
 import os
-import psycopg2
 from app.database import Nota, SessionLocal, init_db
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 app = FastAPI()
 init_db()
+
+DATA_FILE = "/data/notas.txt"  
 
 class NotaCreate(BaseModel):
     title: str
@@ -20,7 +20,6 @@ async def root():
         "You can use this API to manage your notes."
     }
 
-# Este metodo devuelve las notas guardadas en la base de datos
 @app.get("/notes")
 def get_notes():
     try:
@@ -30,7 +29,6 @@ def get_notes():
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="No se pudo acceder a las notas")
 
-
 @app.post("/notes")
 async def create_note(nota: NotaCreate):
     try:
@@ -39,6 +37,10 @@ async def create_note(nota: NotaCreate):
         db.add(nueva_nota)
         db.commit()
         db.refresh(nueva_nota)
+
+        with open(DATA_FILE, "a") as f:
+            f.write(f"{nueva_nota.title} | {nueva_nota.content}\n")
+
         return {
             "message": "Nota guardada exitosamente",
             "note": {
